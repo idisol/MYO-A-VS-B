@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador de Planos copia</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<meta name="description" content="Compara dos planos (PDF o DXF): lo que coincide en café, las diferencias en rojo. Los archivos se procesan en el navegador.">
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><img class="logo" alt="MENA Y OVALLE" width="872" height="100" src="img/logo-mena-y-ovalle.png"></div>
+    <div class="legend" id="legend"></div>
+    <div class="privacy">Los archivos se procesan en tu navegador y no se suben a ningún servidor.</div>
+  </header>
+
+  <aside class="panel">
+    <div class="sec">
+      <h1 class="ptitle"><span class="ptitle-t">Comparador de Planos</span></h1>
+      <p class="premise">Funciona con planos (PDF o DXF) que tengan al menos dos ejes en una dirección y uno en la otra. Si están en otra escala o ubicación, se ajustan automáticamente.</p>
+      <button class="linkbtn alignlink" id="alignBtn" type="button" hidden>Alinear con dos puntos</button>
+      <div class="slots">
+      <div class="slot" id="slotA" data-k="A">
+        <div class="tag">A</div>
+        <div class="fname" id="nameA" hidden></div>
+        <div class="row">
+          <button class="btn" id="pickA" type="button">Elegir archivo</button>
+          <select id="pageA" hidden aria-label="Página del plano A"></select>
+        </div>
+        <div class="msg" id="msgA" hidden></div>
+      </div>
+      <div class="slot" id="slotB" data-k="B">
+        <div class="tag">B</div>
+        <div class="fname" id="nameB" hidden></div>
+        <div class="row">
+          <button class="btn" id="pickB" type="button">Elegir archivo</button>
+          <select id="pageB" hidden aria-label="Página del plano B"></select>
+        </div>
+        <div class="msg" id="msgB" hidden></div>
+      </div>
+      <button class="swapbtn" id="swap" type="button" title="Intercambiar A y B" aria-label="Intercambiar A y B"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 19.5H8V4.5M4.5 8 8 4.5 11.5 8M13 4.5h3v15M12.5 16 16 19.5 19.5 16"/></svg></button>
+      </div>
+      <input type="file" id="fileA" accept=".pdf,.dxf,.dwg" hidden>
+      <input type="file" id="fileB" accept=".pdf,.dxf,.dwg" hidden>
+      <input type="file" id="fileBoth" accept=".pdf,.dxf,.dwg" multiple hidden>
+      <div class="switches" role="group" aria-label="Qué se compara">
+        <button class="switch" id="hatchBtn" type="button" role="switch" aria-checked="true" title="Comparar los hatchs"><span class="track" aria-hidden="true"></span>Hatchs</button>
+        <button class="switch" id="annotBtn" type="button" role="switch" aria-checked="true" title="Comparar ejes, cotas, textos, niveles y marcas de corte y elevación"><span class="track" aria-hidden="true"></span>Elementos de anotación</button>
+      </div>
+      <div class="switches">
+        <button class="switch" id="redBtn" type="button" role="switch" aria-checked="false" title="Mostrar las diferencias en rojo en vez de azul (también en el PDF y el DXF)"><span class="track" aria-hidden="true"></span>Ver diferencias en COLOR ROJO</button>
+      </div>
+    </div>
+
+    <div class="sec card" id="resultSec" hidden>
+      <div class="score">
+        <div class="pct" id="pct">–</div>
+        <span class="lbl pre" id="pctLbl">Los cambios aparecerán en color azul</span>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="dlPdf" type="button" disabled>Descargar PDF</button>
+        <button class="btn" id="dlDxf" type="button" disabled>Descargar DXF</button>
+      </div>
+      <p class="hint" id="dlHint"></p>
+    </div>
+    <a class="credit-m" href="https://www.idisol.com/" target="_blank" rel="noopener">Desarrollado por IDISOL</a>
+  </aside>
+
+  <section class="stage">
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Vista">
+        <button type="button" data-view="diff" aria-pressed="true">Comparación</button>
+        <button type="button" data-view="A" aria-pressed="false">Plano A</button>
+        <button type="button" data-view="B" aria-pressed="false">Plano B</button>
+      </div>
+      <span class="status" id="status"></span>
+      <div class="zoombox">
+        <button class="btn" id="zOut" type="button" aria-label="Alejar">−</button>
+        <button class="btn" id="zFit" type="button">Ajustar</button>
+        <button class="btn" id="zIn" type="button" aria-label="Acercar">+</button>
+      </div>
+    </div>
+    <div class="viewport" id="vp">
+      <div class="empty" id="empty">
+        <button class="loica-btn" id="loicaBtn" type="button" title="Elegir los planos A y B" aria-label="Elegir los planos A y B">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="46 125 930 810" fill="none" class="golondrina-ab golondrina-canto" data-msg="welcome" aria-hidden="true">
+  <title id="golondrina-title">Golondrina A/B</title>
+  <desc id="golondrina-desc">Golondrina azul y blanca alternando la mirada entre A y B, que se iluminan en azul #247cae. Pulsa la cabeza para escuchar su canto.</desc>
+  <defs>
+    <linearGradient id="g-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#247cae" />
+      <stop offset="50%" stop-color="#185c87" />
+      <stop offset="100%" stop-color="#154f76" />
+    </linearGradient>
+    <linearGradient id="g-belly" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbfeff" />
+      <stop offset="52%" stop-color="#e8eef2" />
+      <stop offset="100%" stop-color="#b8c3cf" />
+    </linearGradient>
+    <linearGradient id="g-feather" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#aeb7bc" />
+      <stop offset="38%" stop-color="#626866" />
+      <stop offset="100%" stop-color="#343936" />
+    </linearGradient>
+    <linearGradient id="g-white" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f9fdff" />
+      <stop offset="100%" stop-color="#c6d0d8" />
+    </linearGradient>
+  </defs>
+  <style>
+.golondrina-ab .message{opacity:0}
+.golondrina-ab[data-msg="welcome"] .message-welcome,.golondrina-ab[data-msg="drag"] .message-drag,.golondrina-ab[data-msg="wait"] .message-wait{opacity:1}
+.golondrina-ab .letter-a{fill:#247cae;animation:g-ab-a 12s steps(1,end) infinite}
+.golondrina-ab .letter-b{fill:#C7BDA8;animation:g-ab-b 12s steps(1,end) infinite}
+.golondrina-ab .head-a{opacity:1;animation:g-head-a 12s steps(1,end) infinite}
+.golondrina-ab .head-front{opacity:0;animation:g-head-front 12s steps(1,end) infinite}
+.golondrina-ab .head-b{opacity:0;animation:g-head-b 12s steps(1,end) infinite}
+@keyframes g-ab-a{0%,33%,100%{fill:#247cae}39%,97%{fill:#C7BDA8}}
+@keyframes g-ab-b{0%,49%,92%,100%{fill:#C7BDA8}55%,85%{fill:#247cae}}
+@keyframes g-head-a{0%,100%{opacity:1}42%{opacity:0}98%{opacity:1}}
+@keyframes g-head-front{0%{opacity:0}42%{opacity:1}49%{opacity:0}92%{opacity:1}98%,100%{opacity:0}}
+@keyframes g-head-b{0%{opacity:0}49%{opacity:1}92%,100%{opacity:0}}
+.golondrina-ab .beak-closed{opacity:1;animation:g-closed 12s steps(1,end) infinite}
+.golondrina-ab .beak-half{opacity:0;animation:g-half 12s steps(1,end) infinite}
+.golondrina-ab .beak-open{opacity:0;animation:g-open 12s steps(1,end) infinite}
+@keyframes g-closed{0%,18%,28%,38%,49%,70%,80%,90%,100%{opacity:1}12%,22%,64%,74%{opacity:0}}
+@keyframes g-half{0%,14%,18%,24%,28%,66%,70%,76%,80%,100%{opacity:0}12%,16%,22%,26%,64%,68%,74%,78%{opacity:1}}
+@keyframes g-open{0%,16%,26%,68%,78%,100%{opacity:0}14%,24%,66%,76%{opacity:1}}
+.golondrina-ab .mouth-song{display:none}
+.golondrina-ab.is-singing .cycle{animation-play-state:paused}
+.golondrina-ab.is-singing .mouth-idle{display:none}
+.golondrina-ab.is-singing .mouth-song{display:inline}
+.golondrina-ab.is-singing .mouth-song .beak-closed{animation:g-song-closed .96s steps(1,end) infinite}
+.golondrina-ab.is-singing .mouth-song .beak-half{animation:g-song-half .96s steps(1,end) infinite}
+.golondrina-ab.is-singing .mouth-song .beak-open{animation:g-song-open .96s steps(1,end) infinite}
+@keyframes g-song-closed{0%,45%,88%,100%{opacity:1}13%,59%{opacity:0}}
+@keyframes g-song-half{0%,24%,45%,68%,88%,100%{opacity:0}13%,34%,59%,79%{opacity:1}}
+@keyframes g-song-open{0%,34%,79%,100%{opacity:0}24%,68%{opacity:1}}
+.golondrina-ab .golondrina-head-hit{cursor:pointer;outline:none}
+.golondrina-ab .golondrina-head-hit:focus-visible path{stroke:#247cae;stroke-width:4}
+@media(prefers-reduced-motion:reduce){.golondrina-ab .cycle,.golondrina-ab .beak-closed,.golondrina-ab .beak-half,.golondrina-ab .beak-open{animation:none!important}.golondrina-ab .head-a,.golondrina-ab .head-b{opacity:0}.golondrina-ab .head-front{opacity:1}.golondrina-ab .letter-a,.golondrina-ab .letter-b{fill:#C7BDA8}.golondrina-ab .beak-closed{opacity:1}.golondrina-ab .beak-half,.golondrina-ab .beak-open{opacity:0}}
+</style>
+  <g id="golondrina-sign">
+    <rect x="96" y="686" width="844" height="239" rx="26" fill="white" stroke="#191C16" stroke-width="6.5" />
+    <path d="M127 706H905" stroke="#247cae" stroke-width="8" stroke-linecap="round" />
+    
+    
+    
+    <g class="message message-welcome"><text x="518" y="824.9" fill="#090b07" text-anchor="middle" font-family="DejaVu Sans, Arial Black, Arial, Helvetica, sans-serif" font-size="62.9" font-weight="800" letter-spacing="1.3">BIENVENIDO</text></g>
+    <g class="message message-drag"><text x="518" fill="#090b07" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="43.4" font-weight="800" letter-spacing="0.87"><tspan x="518" y="764.1">ARRASTRA AQUÍ</tspan><tspan x="518" y="822.7">LOS PLANOS QUE</tspan><tspan x="518" y="881.3">QUIERES COMPARAR</tspan></text></g>
+    <g class="message message-wait"><text x="518" y="824.9" fill="#090b07" text-anchor="middle" font-family="DejaVu Sans, Arial Black, Arial, Helvetica, sans-serif" font-size="49.9" font-weight="800" letter-spacing="1.3" textLength="703.0" lengthAdjust="spacingAndGlyphs">TE ESTOY ESPERANDO...</text></g>
+  </g>
+  <g id="golondrina-bird" stroke="#191C16" stroke-width="6.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128.000 206.400 294.400 361.920 248.640 400.800 219.520 381.360 202.880 394.320 217.440 424.560 188.320 474.240 56.240 260.400Z M132.160 284.160 175.840 359.760 186.240 348.960Z" fill="#247cae" fill-rule="evenodd" stroke-width="5.125" class="letter-a cycle" />
+    <path d="M891.200 252.800 953.120 324.224C981.440 354.080 960.800 390.704 926.880 414.352 914.960 426.368 899.840 425.792 887.440 414.768 903.920 440.336 887.200 463.680 853.840 494.064 839.840 506.960 828.240 514.192 820.240 512.928L719.920 411.264Z M866.640 363.136 905.360 328.160Q919.840 338.304 910.880 351.392L882.880 377.184Z M785.920 436.800 835.360 392.640Q850.720 404.736 839.680 418.704L802.160 450.848Z" fill="#C7BDA8" fill-rule="evenodd" stroke-width="5.125" class="letter-b cycle" />
+    <g id="golondrina-tail" transform="translate(22 0)">
+      <path d="M636 548 C707 566 817 635 883 686 L746 633 L764 686 L718 686 L633 583Z" fill="#303633" />
+      <defs>
+        <clipPath id="g-tail-clip">
+          <path d="M636 548 C707 566 817 635 883 686 L746 633 L764 686 L718 686 L633 583Z" fill="white" stroke="none" />
+        </clipPath>
+      </defs>
+      <g clip-path="url(#g-tail-clip)">
+        <path d="M650 561 C710 581 780 624 833 658" stroke="#17577D" stroke-width="9" />
+        <path d="M720 631 729 642 M716 651 726 666 M751 611 763 622 M778 624 787 631" stroke="#b2aa97" stroke-width="8" />
+      </g>
+      <path d="M636 548 C707 566 817 635 883 686 L746 633 L764 686 L718 686 L633 583Z" />
+    </g>
+    <g id="golondrina-wing-left">
+      <path d="M409 308 C366 312 322 341 277 376 C213 426 162 464 114 514 C104 526 104 533 115 535 C132 540 163 526 184 518 C165 531 161 541 173 542 C198 545 225 529 249 519 C233 533 233 540 248 538 C275 534 296 516 322 496 C307 512 309 520 322 518 C341 511 352 497 365 480 C353 493 355 503 368 501 C389 491 409 468 418 445Z" fill="url(#g-feather)" />
+      <path d="M409 307 C353 319 299 359 255 393 C198 434 151 481 110 524 C151 489 201 451 252 416 C312 374 356 345 409 330Z" fill="url(#g-blue)" stroke-width="5.5" />
+      <path d="M405 330 C360 343 315 373 279 407 C267 422 271 435 285 431 C301 426 314 415 322 411 C298 433 307 446 322 441 C333 438 342 432 348 427 C335 443 346 451 358 445 C372 437 383 430 389 420 C376 438 387 443 399 434 L419 411Z" fill="url(#g-white)" stroke-width="5.8" />
+      <path d="M194 477 220 460 M246 488 261 475 M299 484 310 471 M341 482 346 473" stroke="#c7cece" stroke-width="7" />
+      <path d="M182 518 C208 508 241 486 266 454 M249 519 C273 499 293 479 305 459 M322 496 343 458" stroke="#191C16" stroke-width="5.4" />
+    </g>
+    <g id="golondrina-leg-left">
+      <path d="M486 606 472 640 462 675" stroke="#191C16" stroke-width="15" />
+      <path d="M486 606 472 640 462 675" stroke="#625862" stroke-width="7.5" />
+    </g>
+    <g pointer-events="none" class="head-a cycle">
+      <path d="M407 304 C398 282 386 257 389 227 C389 177 431 138 481 136 C539 129 581 156 600 192 C614 217 611 257 622 289 C629 316 640 332 653 353 C686 394 709 450 700 495 C695 543 666 571 624 591 C597 606 555 611 516 608 L502 609 C488 623 470 617 463 600 C429 587 402 559 388 526 C365 478 372 408 386 365 C392 345 400 322 407 304Z" fill="url(#g-belly)" />
+      <path d="M389 227 C390 178 431 138 481 136 C539 129 582 156 600 192 C614 217 611 257 622 289 C629 316 640 332 653 353 L569 336 L540 303 C555 278 565 260 545 247 C521 233 496 250 473 249 C434 251 408 234 389 227Z" fill="url(#g-blue)" />
+      <path d="M396 201 C421 161 472 139 515 149 C551 156 579 178 594 202" stroke="#247cae" stroke-width="9" fill="none" />
+      <g transform="translate(0 0)">
+        <path d="M397 223 C415 199 451 184 490 185 C525 185 552 208 555 233 C560 248 550 259 547 263 C526 243 508 245 480 248 C452 254 430 245 409 240Z" fill="#222a2d" stroke="none" />
+      </g>
+      <path d="M407 301 C420 326 452 333 474 330 C450 352 410 385 407 420 C404 461 419 495 437 517 C463 543 503 560 531 541 C558 525 557 501 548 477 C530 437 522 413 529 376 L550 295 C563 270 558 255 543 248 C518 236 495 250 474 250 C441 256 427 244 412 247 C397 252 398 278 407 301Z" fill="#f8fcff" stroke="none" />
+      <g transform="translate(0 0)">
+        <path d="M406 300 C435 319 470 324 501 314 C482 346 438 352 408 327Z" fill="#bfc7d1" stroke="none" />
+      </g>
+      <circle cx="484" cy="214" r="20" fill="#0f130d" stroke="none" />
+      <circle cx="480" cy="207" r="6.8" fill="white" stroke="none" />
+      <g class="mouth-idle">
+        <g class="beak-closed cycle">
+          <g stroke-width="5.1">
+            <g transform="translate(0 0)">
+              <path d="M441 243 C409 229 395 217 386 220 C373 224 353 232 346 241 Q343 245 350 247 L350 251 415 257Z" fill="#626073" />
+              <path d="M349 243 437 244" stroke-width="4.5" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-half cycle">
+          <g stroke-width="5.1">
+            <g transform="translate(0 0)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-7 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-open cycle">
+          <g stroke-width="5.1">
+            <g transform="translate(0 0)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-15 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+      </g>
+      <g class="mouth-song">
+        <g class="beak-closed">
+          <g stroke-width="5.1">
+            <g transform="translate(0 0)">
+              <path d="M441 243 C409 229 395 217 386 220 C373 224 353 232 346 241 Q343 245 350 247 L350 251 415 257Z" fill="#626073" />
+              <path d="M349 243 437 244" stroke-width="4.5" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-half">
+          <g stroke-width="5.1">
+            <g transform="translate(0 0)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-7 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-open">
+          <g stroke-width="5.1">
+            <g transform="translate(0 0)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-15 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+    <g pointer-events="none" class="head-front cycle">
+      <path d="M407 304 C398 282 386 257 389 227 C389 177 431 138 481 136 C539 129 581 156 600 192 C614 217 611 257 622 289 C629 316 640 332 653 353 C686 394 709 450 700 495 C695 543 666 571 624 591 C597 606 555 611 516 608 L502 609 C488 623 470 617 463 600 C429 587 402 559 388 526 C365 478 372 408 386 365 C392 345 400 322 407 304Z" fill="url(#g-belly)" />
+      <path d="M389 267 C381 218 394 179 431 153 C465 130 515 130 551 146 C587 161 607 192 614 228 C620 270 623 304 653 353 L565 339 526 282 478 281 435 291Z" fill="url(#g-blue)" />
+      <path d="M397 207 C420 161 479 139 531 154 C558 160 579 173 592 196" stroke="#247cae" stroke-width="8" fill="none" />
+      <path d="M388 237 C394 208 425 188 456 195 C480 200 496 223 497 244 L488 266 C460 261 434 249 413 264 C399 273 389 270 386 260Z" fill="#222a2d" stroke="none" />
+      <path d="M511 244 C515 217 533 198 557 195 C584 191 604 212 610 238 L617 260 C600 272 585 255 562 258 L529 267Z" fill="#222a2d" stroke="none" />
+      <path d="M390 267 C416 242 459 259 476 264 L503 283 L528 264 C550 253 590 244 614 264 C624 309 600 327 575 340 C559 347 549 373 545 395 C530 441 550 476 548 500 C551 529 530 549 503 550 C457 552 423 529 397 500 C382 461 380 413 390 374 C403 334 395 299 390 267Z" fill="#f8fcff" stroke="none" />
+      <path d="M424 309 C459 330 510 337 547 321 C511 354 463 351 424 309Z" fill="#bfc7d1" stroke="none" />
+      <circle cx="438" cy="223" r="20" fill="#0f130d" stroke="none" />
+      <circle cx="434" cy="216" r="6.8" fill="white" stroke="none" />
+      <circle cx="568" cy="223" r="20" fill="#0f130d" stroke="none" />
+      <circle cx="564" cy="216" r="6.8" fill="white" stroke="none" />
+      <g class="mouth-idle">
+        <g class="beak-closed cycle">
+          <g stroke-width="5.1">
+            <path d="M454 249 501 226 548 248 501 278Z" fill="#626073" />
+            <path d="M458 249 501 253 545 248" stroke-width="4.5" />
+            <path d="M501 231 501 249" stroke="#464653" stroke-width="2.2" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+        <g class="beak-half cycle">
+          <g stroke-width="5.1">
+            <path d="M463 249 539 249 530 267 477 267Z" fill="#22232b" stroke="none" />
+            <path d="M456 249 501 228 547 249 501 257Z" fill="#666478" />
+            <path d="M477 267 525 267 501 287Z" fill="#565565" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+        <g class="beak-open cycle">
+          <g stroke-width="5.1">
+            <path d="M463 249 539 249 530 279 477 279Z" fill="#22232b" stroke="none" />
+            <path d="M456 249 501 228 547 249 501 257Z" fill="#666478" />
+            <path d="M477 279 525 279 501 299Z" fill="#565565" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+      </g>
+      <g class="mouth-song">
+        <g class="beak-closed">
+          <g stroke-width="5.1">
+            <path d="M454 249 501 226 548 248 501 278Z" fill="#626073" />
+            <path d="M458 249 501 253 545 248" stroke-width="4.5" />
+            <path d="M501 231 501 249" stroke="#464653" stroke-width="2.2" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+        <g class="beak-half">
+          <g stroke-width="5.1">
+            <path d="M463 249 539 249 530 267 477 267Z" fill="#22232b" stroke="none" />
+            <path d="M456 249 501 228 547 249 501 257Z" fill="#666478" />
+            <path d="M477 267 525 267 501 287Z" fill="#565565" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+        <g class="beak-open">
+          <g stroke-width="5.1">
+            <path d="M463 249 539 249 530 279 477 279Z" fill="#22232b" stroke="none" />
+            <path d="M456 249 501 228 547 249 501 257Z" fill="#666478" />
+            <path d="M477 279 525 279 501 299Z" fill="#565565" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+      </g>
+    </g>
+    <g pointer-events="none" class="head-b cycle">
+      <path d="M407 304 C398 282 386 257 389 227 C389 177 431 138 481 136 C539 129 581 156 600 192 C614 217 611 257 622 289 C629 316 640 332 653 353 C686 394 709 450 700 495 C695 543 666 571 624 591 C597 606 555 611 516 608 L502 609 C488 623 470 617 463 600 C429 587 402 559 388 526 C365 478 372 408 386 365 C392 345 400 322 407 304Z" fill="url(#g-belly)" />
+      <path d="M389 227 C390 178 431 138 481 136 C539 129 582 156 600 192 C608 211 611 232 612 248 L615 263 C598 261 585 265 570 272 C550 281 533 281 511 278 C481 276 468 290 460 313 C453 335 455 352 471 367 C440 383 412 381 390 368 C403 343 406 323 407 304 C398 280 386 255 389 227Z" fill="url(#g-blue)" />
+      <path d="M396 201 C421 161 472 139 515 149 C551 156 579 178 594 202" stroke="#247cae" stroke-width="9" fill="none" />
+      <g transform="translate(1004 0) scale(-1 1)">
+        <path d="M397 223 C415 199 451 184 490 185 C525 185 552 208 555 233 C560 248 550 259 547 263 C526 243 508 245 480 248 C452 254 430 245 409 240Z" fill="#222a2d" stroke="none" />
+      </g>
+      <path d="M512 278 C537 277 550 263 564 244 C590 246 605 252 615 263 C605 280 600 300 589 313 C570 339 558 364 548 397 C532 439 550 476 548 500 C551 529 530 549 503 550 C457 552 423 529 397 500 C382 461 380 413 390 395 C418 378 439 383 459 375 C476 365 459 354 460 333 C461 302 479 278 512 278Z" fill="#f8fcff" stroke="none" />
+      <g transform="translate(1004 0) scale(-1 1)">
+        <path d="M406 300 C435 319 470 324 501 314 C482 346 438 352 408 327Z" fill="#bfc7d1" stroke="none" />
+      </g>
+      <circle cx="520" cy="214" r="20" fill="#0f130d" stroke="none" />
+      <circle cx="516" cy="207" r="6.8" fill="white" stroke="none" />
+      <g class="mouth-idle">
+        <g class="beak-closed cycle">
+          <g stroke-width="5.1">
+            <g transform="translate(1004 0) scale(-1 1)">
+              <path d="M441 243 C409 229 395 217 386 220 C373 224 353 232 346 241 Q343 245 350 247 L350 251 415 257Z" fill="#626073" />
+              <path d="M349 243 437 244" stroke-width="4.5" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-half cycle">
+          <g stroke-width="5.1">
+            <g transform="translate(1004 0) scale(-1 1)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-7 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-open cycle">
+          <g stroke-width="5.1">
+            <g transform="translate(1004 0) scale(-1 1)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-15 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+      </g>
+      <g class="mouth-song">
+        <g class="beak-closed">
+          <g stroke-width="5.1">
+            <g transform="translate(1004 0) scale(-1 1)">
+              <path d="M441 243 C409 229 395 217 386 220 C373 224 353 232 346 241 Q343 245 350 247 L350 251 415 257Z" fill="#626073" />
+              <path d="M349 243 437 244" stroke-width="4.5" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-half">
+          <g stroke-width="5.1">
+            <g transform="translate(1004 0) scale(-1 1)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-7 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+        <g class="beak-open">
+          <g stroke-width="5.1">
+            <g transform="translate(1004 0) scale(-1 1)">
+              <path d="M427 244 346 241 355 266Z" fill="#22232b" stroke="none" />
+              <path d="M440 243 C409 229 395 217 386 220 C373 224 353 232 346 241 L427 244Z" fill="#666478" />
+              <path d="M427 244 346 241 415 257Z" fill="#565565" transform="rotate(-15 427 244)" />
+              <ellipse cx="399" cy="228" rx="4.2" ry="3" fill="#191C16" stroke="none" />
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+    <g id="golondrina-wing-right">
+      <path d="M565 314 C609 306 651 338 690 378 L751 446 C792 486 852 526 873 560 Q884 576 869 578 C835 586 780 564 743 550 C692 533 632 515 593 481 C541 448 517 389 526 350 C530 332 543 319 565 314Z" fill="url(#g-feather)" />
+      <path d="M600 454 C655 512 711 542 764 559 M635 474 C691 524 757 558 839 572 M689 496 C747 540 799 561 864 574" stroke="#191C16" stroke-width="5.7" />
+      <path d="M565 314 C612 306 664 350 705 401 L747 462 Q756 482 741 480 L713 468 Q710 483 694 475 L670 458 Q670 476 651 467 L632 450 Q628 470 609 457 L590 442 Q593 462 576 449 C553 427 534 397 526 370 C520 345 531 321 565 314Z" fill="url(#g-blue)" />
+      <path d="M543 333 C571 315 614 340 647 366 C683 395 715 437 735 462" stroke="#247cae" stroke-width="9" stroke-opacity=".65" />
+      <path d="M556 391 563 407 M585 405 590 413 M621 412 631 424 M667 415 674 424" stroke="#c6d0d3" stroke-width="6.7" />
+      <path d="M735 517 745 525 M763 504 778 514 M806 531 816 538" stroke="#bbc1bc" stroke-width="7" />
+    </g>
+    <g id="golondrina-feet">
+      <path d="M603 596 591 643 586 686" stroke="#191C16" stroke-width="15" />
+      <path d="M603 596 591 643 586 686" stroke="#625862" stroke-width="7.5" />
+      <path d="M463 600 Q458 590 461 583" stroke-width="6.5" />
+      <g transform="translate(0 0)">
+        <path d="M462 675 C439 672 414 675 406 696 C410 683 421 681 430 680 C423 688 420 703 423 713 C426 702 436 688 445 686 C439 699 441 712 447 718 C446 703 454 691 462 686 C475 677 485 682 493 683 C490 673 474 670 462 675Z" fill="#625862" stroke-width="6.2" />
+      </g>
+      <g transform="translate(124 11)">
+        <path d="M462 675 C439 672 414 675 406 696 C410 683 421 681 430 680 C423 688 420 703 423 713 C426 702 436 688 445 686 C439 699 441 712 447 718 C446 703 454 691 462 686 C475 677 485 682 493 683 C490 673 474 670 462 675Z" fill="#625862" stroke-width="6.2" />
+      </g>
+    </g>
+  </g>
+  <g class="golondrina-head-hit">
+    <path d="M389 227 C389 177 431 138 481 136 C539 129 581 156 600 192 C615 225 611 260 622 289 L639 326 C591 303 552 305 526 338 C505 312 452 302 407 304 C398 282 386 257 389 227Z" fill="transparent" stroke="none" pointer-events="all" />
+  </g>
+</svg>
+        </button>
+        <p class="empty-msg" id="emptyMsg" hidden></p>
+      </div>
+      <div class="errorview" id="errorView" role="alert" hidden>
+        <div class="loica-err">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="46 125 930 810" fill="none" class="golondrina-err" role="img" aria-labelledby="golondrina-err-title golondrina-err-desc">
+  <title id="golondrina-err-title">ERROR</title>
+  <desc id="golondrina-err-desc">Golondrina con cartel de ERROR y gesto de negación con la cabeza, repetido con una pausa entre gestos.</desc>
+  <defs>
+    <linearGradient id="ge-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#247cae" />
+      <stop offset="50%" stop-color="#185c87" />
+      <stop offset="100%" stop-color="#154f76" />
+    </linearGradient>
+    <linearGradient id="ge-belly" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbfeff" />
+      <stop offset="52%" stop-color="#e8eef2" />
+      <stop offset="100%" stop-color="#b8c3cf" />
+    </linearGradient>
+    <linearGradient id="ge-feather" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#aeb7bc" />
+      <stop offset="38%" stop-color="#626866" />
+      <stop offset="100%" stop-color="#343936" />
+    </linearGradient>
+    <linearGradient id="ge-white" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f9fdff" />
+      <stop offset="100%" stop-color="#c6d0d8" />
+    </linearGradient>
+  </defs>
+  <style>
+/* Negación horizontal: tres vaivenes y una pausa, cada 3.4 segundos. */
+.golondrina-err .ge-head { transform-box: view-box; transform-origin: 500px 300px; animation: ge-shake 3.4s ease-in-out infinite; }
+@keyframes ge-shake {
+  0% { transform: translateX(0px) scaleX(1); }
+  10% { transform: translateX(-12px) scaleX(.92); }
+  20% { transform: translateX(12px) scaleX(1.02); }
+  30% { transform: translateX(-12px) scaleX(.92); }
+  40% { transform: translateX(12px) scaleX(1.02); }
+  50% { transform: translateX(-9px) scaleX(.95); }
+  60%, 100% { transform: translateX(0px) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) { .golondrina-err .ge-head { animation: none; transform: none; } }
+</style>
+  <g id="golondrina-err-sign">
+    <rect x="96" y="686" width="844" height="239" rx="26" fill="white" stroke="#191C16" stroke-width="6.5" />
+    <path d="M127 706H905" stroke="#247cae" stroke-width="8" stroke-linecap="round" />
+    
+    
+    
+    <text x="518" y="844.7" fill="#237cad" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="107.4" font-weight="800" letter-spacing="5.75">ERROR</text>
+  </g>
+  <g id="golondrina-err-bird" stroke="#191C16" stroke-width="6.7" stroke-linecap="round" stroke-linejoin="round">
+    
+    
+    <g id="golondrina-err-tail" transform="translate(22 0)">
+      <path d="M636 548 C707 566 817 635 883 686 L746 633 L764 686 L718 686 L633 583Z" fill="#303633" />
+      <defs>
+        <clipPath id="ge-tail-clip">
+          <path d="M636 548 C707 566 817 635 883 686 L746 633 L764 686 L718 686 L633 583Z" fill="white" stroke="none" />
+        </clipPath>
+      </defs>
+      <g clip-path="url(#ge-tail-clip)">
+        <path d="M650 561 C710 581 780 624 833 658" stroke="#17577D" stroke-width="9" />
+        <path d="M720 631 729 642 M716 651 726 666 M751 611 763 622 M778 624 787 631" stroke="#b2aa97" stroke-width="8" />
+      </g>
+      <path d="M636 548 C707 566 817 635 883 686 L746 633 L764 686 L718 686 L633 583Z" />
+    </g>
+    <g id="golondrina-err-wing-left">
+      <path d="M409 308 C366 312 322 341 277 376 C213 426 162 464 114 514 C104 526 104 533 115 535 C132 540 163 526 184 518 C165 531 161 541 173 542 C198 545 225 529 249 519 C233 533 233 540 248 538 C275 534 296 516 322 496 C307 512 309 520 322 518 C341 511 352 497 365 480 C353 493 355 503 368 501 C389 491 409 468 418 445Z" fill="url(#ge-feather)" />
+      <path d="M409 307 C353 319 299 359 255 393 C198 434 151 481 110 524 C151 489 201 451 252 416 C312 374 356 345 409 330Z" fill="url(#ge-blue)" stroke-width="5.5" />
+      <path d="M405 330 C360 343 315 373 279 407 C267 422 271 435 285 431 C301 426 314 415 322 411 C298 433 307 446 322 441 C333 438 342 432 348 427 C335 443 346 451 358 445 C372 437 383 430 389 420 C376 438 387 443 399 434 L419 411Z" fill="url(#ge-white)" stroke-width="5.8" />
+      <path d="M194 477 220 460 M246 488 261 475 M299 484 310 471 M341 482 346 473" stroke="#c7cece" stroke-width="7" />
+      <path d="M182 518 C208 508 241 486 266 454 M249 519 C273 499 293 479 305 459 M322 496 343 458" stroke="#191C16" stroke-width="5.4" />
+    </g>
+    <g id="golondrina-err-leg-left">
+      <path d="M486 606 472 640 462 675" stroke="#191C16" stroke-width="15" />
+      <path d="M486 606 472 640 462 675" stroke="#625862" stroke-width="7.5" />
+    </g>
+    
+    <g class="ge-head"><g pointer-events="none" class="head-front">
+      <path d="M407 304 C398 282 386 257 389 227 C389 177 431 138 481 136 C539 129 581 156 600 192 C614 217 611 257 622 289 C629 316 640 332 653 353 C686 394 709 450 700 495 C695 543 666 571 624 591 C597 606 555 611 516 608 L502 609 C488 623 470 617 463 600 C429 587 402 559 388 526 C365 478 372 408 386 365 C392 345 400 322 407 304Z" fill="url(#ge-belly)" />
+      <path d="M389 267 C381 218 394 179 431 153 C465 130 515 130 551 146 C587 161 607 192 614 228 C620 270 623 304 653 353 L565 339 526 282 478 281 435 291Z" fill="url(#ge-blue)" />
+      <path d="M397 207 C420 161 479 139 531 154 C558 160 579 173 592 196" stroke="#247cae" stroke-width="8" fill="none" />
+      <path d="M388 237 C394 208 425 188 456 195 C480 200 496 223 497 244 L488 266 C460 261 434 249 413 264 C399 273 389 270 386 260Z" fill="#222a2d" stroke="none" />
+      <path d="M511 244 C515 217 533 198 557 195 C584 191 604 212 610 238 L617 260 C600 272 585 255 562 258 L529 267Z" fill="#222a2d" stroke="none" />
+      <path d="M390 267 C416 242 459 259 476 264 L503 283 L528 264 C550 253 590 244 614 264 C624 309 600 327 575 340 C559 347 549 373 545 395 C530 441 550 476 548 500 C551 529 530 549 503 550 C457 552 423 529 397 500 C382 461 380 413 390 374 C403 334 395 299 390 267Z" fill="#f8fcff" stroke="none" />
+      <path d="M424 309 C459 330 510 337 547 321 C511 354 463 351 424 309Z" fill="#bfc7d1" stroke="none" />
+      <circle cx="438" cy="223" r="20" fill="#0f130d" stroke="none" />
+      <circle cx="434" cy="216" r="6.8" fill="white" stroke="none" />
+      <circle cx="568" cy="223" r="20" fill="#0f130d" stroke="none" />
+      <circle cx="564" cy="216" r="6.8" fill="white" stroke="none" />
+      <g class="mouth-idle">
+        <g class="beak-closed">
+          <g stroke-width="5.1">
+            <path d="M454 249 501 226 548 248 501 278Z" fill="#626073" />
+            <path d="M458 249 501 253 545 248" stroke-width="4.5" />
+            <path d="M501 231 501 249" stroke="#464653" stroke-width="2.2" />
+            <circle cx="488" cy="240" r="3" fill="#191C16" stroke="none" />
+            <circle cx="515" cy="240" r="3" fill="#191C16" stroke="none" />
+          </g>
+        </g>
+        
+        
+      </g>
+      
+    </g></g>
+    
+    <g id="golondrina-err-wing-right">
+      <path d="M565 314 C609 306 651 338 690 378 L751 446 C792 486 852 526 873 560 Q884 576 869 578 C835 586 780 564 743 550 C692 533 632 515 593 481 C541 448 517 389 526 350 C530 332 543 319 565 314Z" fill="url(#ge-feather)" />
+      <path d="M600 454 C655 512 711 542 764 559 M635 474 C691 524 757 558 839 572 M689 496 C747 540 799 561 864 574" stroke="#191C16" stroke-width="5.7" />
+      <path d="M565 314 C612 306 664 350 705 401 L747 462 Q756 482 741 480 L713 468 Q710 483 694 475 L670 458 Q670 476 651 467 L632 450 Q628 470 609 457 L590 442 Q593 462 576 449 C553 427 534 397 526 370 C520 345 531 321 565 314Z" fill="url(#ge-blue)" />
+      <path d="M543 333 C571 315 614 340 647 366 C683 395 715 437 735 462" stroke="#247cae" stroke-width="9" stroke-opacity=".65" />
+      <path d="M556 391 563 407 M585 405 590 413 M621 412 631 424 M667 415 674 424" stroke="#c6d0d3" stroke-width="6.7" />
+      <path d="M735 517 745 525 M763 504 778 514 M806 531 816 538" stroke="#bbc1bc" stroke-width="7" />
+    </g>
+    <g id="golondrina-err-feet">
+      <path d="M603 596 591 643 586 686" stroke="#191C16" stroke-width="15" />
+      <path d="M603 596 591 643 586 686" stroke="#625862" stroke-width="7.5" />
+      <path d="M463 600 Q458 590 461 583" stroke-width="6.5" />
+      <g transform="translate(0 0)">
+        <path d="M462 675 C439 672 414 675 406 696 C410 683 421 681 430 680 C423 688 420 703 423 713 C426 702 436 688 445 686 C439 699 441 712 447 718 C446 703 454 691 462 686 C475 677 485 682 493 683 C490 673 474 670 462 675Z" fill="#625862" stroke-width="6.2" />
+      </g>
+      <g transform="translate(124 11)">
+        <path d="M462 675 C439 672 414 675 406 696 C410 683 421 681 430 680 C423 688 420 703 423 713 C426 702 436 688 445 686 C439 699 441 712 447 718 C446 703 454 691 462 686 C475 677 485 682 493 683 C490 673 474 670 462 675Z" fill="#625862" stroke-width="6.2" />
+      </g>
+    </g>
+  </g>
+  
+</svg>
+        </div>
+        <p class="err-msg" id="errMsg"></p>
+        <div class="btnrow" id="errBtns" hidden>
+          <button class="btn primary" id="nmAlign" type="button">Alinear con dos puntos</button>
+          <button class="btn" id="nmShow" type="button">Ver la comparación igual</button>
+        </div>
+        <p class="err-count" id="errCount"></p>
+      </div>
+      <a class="credit" href="https://www.idisol.com/" target="_blank" rel="noopener">Desarrollado por IDISOL</a>
+      <span class="secreto" aria-hidden="true">Si encontraste esto eres un genio y me debes un almuerzo. Atte. Felipe Borquez</span>
+    </div>
+  </section>
+</div>
+
+<div class="dropzone" id="drop" hidden>
+  <div class="dz" data-k="A"><span class="dzk">A</span>Soltar como A</div>
+  <div class="dz" data-k="B"><span class="dzk">B</span>Soltar como B</div>
+  <p class="dzboth">Si sueltas los dos archivos juntos, el primero por nombre queda como A.</p>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <header>
+      <h3>Alinear con dos puntos</h3>
+      <span class="hint" id="dlgHint">Marca el mismo cruce de ejes en A y en B. Primero el punto 1 en ambos, luego el punto 2.</span>
+    </header>
+    <div class="panes">
+      <div class="pane"><div class="ph"><strong>Plano A</strong><span class="mono" id="cntA">0 / 2</span></div><div class="viewport pick" id="vpA"></div></div>
+      <div class="pane"><div class="ph"><strong>Plano B</strong><span class="mono" id="cntB">0 / 2</span></div><div class="viewport pick" id="vpB"></div></div>
+    </div>
+    <footer>
+      <label class="check"><input type="checkbox" id="sameScale" checked> A y B están a la misma escala</label>
+      <div class="btnrow">
+        <button class="btn" id="dlgReset" type="button">Borrar puntos</button>
+        <button class="btn" id="dlgCancel" type="button">Cancelar</button>
+        <button class="btn primary" id="dlgApply" type="button" disabled>Aplicar</button>
+      </div>
+    </footer>
+  </div>
+</dialog>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf.worker.min.js"></script>
+<script src="vendor/dxf-parser.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="js/comparador.js"></script>
+</body>
+</html>
